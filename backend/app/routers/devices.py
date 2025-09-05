@@ -1,10 +1,17 @@
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
-from ..schemas import DeviceIn, DeviceOut
+from sqlalchemy.exc import IntegrityError
 from ..models.core import Device, Site
+from ..schemas import DeviceIn, DeviceOut
 from ..utils.dbtools import session_scope
 
 router = APIRouter(prefix="/devices", tags=["devices"])
+
+@router.get("", response_model=list[DeviceOut])
+def list_devices():
+    with session_scope() as s:
+        rows = s.execute(select(Device)).scalars().all()
+        return [DeviceOut.model_validate(obj) for obj in rows]  # materialize now
 
 @router.post("", response_model=DeviceOut, status_code=201)
 def create_device(payload: DeviceIn):
@@ -16,25 +23,12 @@ def create_device(payload: DeviceIn):
             name=payload.name,
             vendor=payload.vendor,
             model=payload.model,
-            role=payload.role,  # pass through
-            mgmt_ip=str(payload.mgmt_ip) if payload.mgmt_ip else None,
+            role=payload.role,
+            mgmt_ip=payload.mgmt_ip,
         )
-        s.add(dev); s.flush()
-        return DeviceOut(id=dev.id, **payload.dict())
-
-@router.get("", response_model=list[DeviceOut])
-def list_devices():
-    with session_scope() as s:
-        rows = s.execute(select(Device)).scalars().all()
-        return [
-            DeviceOut(
-                id=d.id,
-                site_id=d.site_id,
-                name=d.name,
-                vendor=d.vendor,
-                model=d.model,
-                role=d.role,
-                mgmt_ip=str(d.mgmt_ip) if d.mgmt_ip else None,  # ← cast INET to str
-            )
-            for d in rows
-        ]
+        s.add(dev)
+        try:
+            s.flush()
+        except IntegrityError:
+            raise HTTPException(409, "A device with this name already exists in this site.")
+        return DeviceOut.model_validate(dev)  # materialize now

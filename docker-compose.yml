@@ -1,29 +1,22 @@
 # docker-compose.yml
+# tip: run `docker compose config` to validate this file
+
 services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-ipam}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ipam}
-      POSTGRES_DB: ${POSTGRES_DB:-ipam}
+      POSTGRES_USER: ipam
+      POSTGRES_PASSWORD: ipam
+      POSTGRES_DB: ipam
     ports:
       - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ipam} -d ${POSTGRES_DB:-ipam}"]
-      interval: 3s
-      timeout: 3s
-      retries: 20
     volumes:
-      - pgdata:/var/lib/postgresql/data
-
-  web:
-    build: ./frontend
-    environment:
-      - NEXT_PUBLIC_API_BASE=http://api:8000   # talks to the api container
-    ports:
-      - "3000:3000"
-    depends_on:
-      - api
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ipam -d ipam"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   redis:
     image: redis:7
@@ -31,27 +24,36 @@ services:
       - "6379:6379"
 
   api:
-    build: ./backend
-    env_file: .env
+    build:
+      context: ./backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    volumes:
+      - ./backend:/app
     environment:
-      - PYTHONPATH=/app
+      DATABASE_URL: postgresql+psycopg2://ipam:ipam@db:5432/ipam
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
-      redis:
-        condition: service_started
-    ports:
-      - "8000:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
 
-  worker:
-    build: ./backend
-    env_file: .env
-    command: celery -A app.worker worker --loglevel=info
+  web:
+    build:
+      context: ./frontend
     environment:
-      - PYTHONPATH=/app
+      INTERNAL_API_BASE: http://api:8000        # used by SSR inside the container
+      NEXT_PUBLIC_API_BASE: http://localhost:8000  # used by the browser on your PC
+    ports:
+      - "3000:3000"
     depends_on:
-      - api
-      - redis
+      api:
+        condition: service_healthy
 
 volumes:
-  pgdata:
+  db_data:

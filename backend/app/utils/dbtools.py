@@ -1,5 +1,6 @@
+# backend/app/utils/dbtools.py
 from contextlib import contextmanager
-from ..db import SessionLocal
+from .db import SessionLocal
 
 @contextmanager
 def session_scope():
