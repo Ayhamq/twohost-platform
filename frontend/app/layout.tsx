@@ -15,6 +15,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link className="btn" href="/sites">Sites</Link>
               <Link className="btn" href="/devices">Devices</Link>
               <Link className="btn" href="/ipam">IPAM</Link>
+              <Link className="btn" href="/racks">Racks</Link>
+              <Link className="btn" href="/topology">Topology</Link>
             </nav>
           </div>
         </header>

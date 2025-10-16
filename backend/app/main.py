@@ -14,11 +14,14 @@ app.add_middleware(
     allow_methods=["*"],          # includes OPTIONS
     allow_headers=["*"],
 )
-
+from .routers.racks import router as racks_router
+from .routers.interfaces import router as interfaces_router
 from .routers.health import router as health_router
 from .routers.sites import router as sites_router
 from .routers.devices import router as devices_router
 from .routers.ipam import router as ipam_router
+from .routers.topology import router as topology_router
+
 from .db import engine
 
 app = FastAPI(title="2-Host Starter API")
@@ -48,7 +51,10 @@ def wait_for_db(retries: int = 50, delay: float = 0.5):
 def on_startup():
     wait_for_db()
 
+app.include_router(racks_router)
 app.include_router(health_router)
 app.include_router(sites_router)
 app.include_router(devices_router)
 app.include_router(ipam_router)
+app.include_router(interfaces_router)
+app.include_router(topology_router)

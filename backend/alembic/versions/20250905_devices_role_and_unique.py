@@ -12,28 +12,39 @@ def upgrade() -> None:
     bind = op.get_bind()
     insp = sa.inspect(bind)
 
-    # 1) add 'role' column if it doesn't exist
-    cols = {c['name'] for c in insp.get_columns('devices')}
-    if 'role' not in cols:
-        op.add_column('devices', sa.Column('role', sa.String(length=64), nullable=True))
+    # add 'role' if missing
+    cols = [c["name"] for c in insp.get_columns("devices")]
+    if "role" not in cols:
+        op.add_column("devices", sa.Column("role", sa.String(length=64), nullable=True))
 
-    # 2) ensure unique(site_id, name)
-    uqs = {uc['name']: uc for uc in insp.get_unique_constraints('devices')}
-    if 'devices_name_key' in uqs:
-        op.drop_constraint('devices_name_key', 'devices', type_='unique')
-    if 'uq_devices_site_name' not in uqs:
-        op.create_unique_constraint('uq_devices_site_name', 'devices', ['site_id', 'name'])
+    # drop unique(name) if exists
+    try:
+        op.drop_constraint("devices_name_key", "devices", type_="unique")
+    except Exception:
+        pass
+
+    # create unique(site_id, name) if not exists (best-effort)
+    try:
+        op.create_unique_constraint("uq_devices_site_name", "devices", ["site_id", "name"])
+    except Exception:
+        pass
 
 def downgrade() -> None:
+    # revert unique(site_id, name)
+    try:
+        op.drop_constraint("uq_devices_site_name", "devices", type_="unique")
+    except Exception:
+        pass
+
+    # restore unique(name)
+    try:
+        op.create_unique_constraint("devices_name_key", "devices", ["name"])
+    except Exception:
+        pass
+
+    # drop 'role' if present
     bind = op.get_bind()
     insp = sa.inspect(bind)
-
-    uqs = {uc['name']: uc for uc in insp.get_unique_constraints('devices')}
-    if 'uq_devices_site_name' in uqs:
-        op.drop_constraint('uq_devices_site_name', 'devices', type_='unique')
-    if 'devices_name_key' not in uqs:
-        op.create_unique_constraint('devices_name_key', 'devices', ['name'])
-
-    cols = {c['name'] for c in insp.get_columns('devices')}
-    if 'role' in cols:
-        op.drop_column('devices', 'role')
+    cols = [c["name"] for c in insp.get_columns("devices")]
+    if "role" in cols:
+        op.drop_column("devices", "role")

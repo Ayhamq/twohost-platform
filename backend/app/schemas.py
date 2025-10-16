@@ -6,6 +6,18 @@ class SiteIn(BaseModel):
     name: str
     slug: str
 
+class RackIn(BaseModel):
+    site_id: UUID
+    name: str
+    u_height: int = 42
+
+class RackOut(BaseModel):
+    id: UUID
+    site_id: UUID
+    name: str
+    u_height: int
+    model_config = ConfigDict(from_attributes=True)
+
 class SiteOut(BaseModel):
     id: UUID
     name: str
@@ -19,6 +31,8 @@ class DeviceIn(BaseModel):
     model: Optional[str] = None
     role: Optional[str] = None
     mgmt_ip: Optional[str] = None
+    rack_id: Optional[UUID] = None       # NEW (optional)
+    position_u: Optional[int] = None     # NEW (optional)
 
 class DeviceOut(BaseModel):
     id: UUID
@@ -28,7 +42,9 @@ class DeviceOut(BaseModel):
     model: Optional[str] = None
     role: Optional[str] = None
     mgmt_ip: Optional[str] = None
-    model_config = ConfigDict(from_attributes=True)  # important for ORM objects
+    rack_id: Optional[UUID] = None       # NEW (optional)
+    position_u: Optional[int] = None     # NEW (optional)
+    model_config = ConfigDict(from_attributes=True)
 # ---------- VRF ----------
 class VRFIn(BaseModel):
     name: str
@@ -79,4 +95,39 @@ class IPAddressOut(BaseModel):
     address: str
     interface_id: Optional[UUID] = None
     dns_name: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+
+class InterfaceIn(BaseModel):
+    device_id: UUID
+    name: str
+    type: str = "ethernet"
+    admin_up: bool = True
+    mtu: Optional[int] = None
+    mac: Optional[str] = None
+    description: Optional[str] = None
+
+class InterfaceOut(BaseModel):
+    id: UUID
+    device_id: UUID
+    name: str
+    type: str
+    admin_up: bool
+    oper_up: bool
+    mtu: Optional[int]
+    mac: Optional[str]
+    description: Optional[str]
+    model_config = ConfigDict(from_attributes=True)
+
+class CableConnectIn(BaseModel):
+    a_interface_id: UUID
+    b_interface_id: UUID
+    label: Optional[str] = None
+    color: Optional[str] = None
+
+class CableOut(BaseModel):
+    id: UUID
+    a_interface_id: UUID
+    b_interface_id: UUID
+    label: Optional[str]
+    color: Optional[str]
     model_config = ConfigDict(from_attributes=True)
